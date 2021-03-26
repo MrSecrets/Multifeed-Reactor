@@ -32,8 +32,8 @@ delCp=cp_steam+cp_mecl-cp_hcl-cp_meoh;
 
 thermSystem = [delH_298; delCp];
 
-T0 = 573.15;
-Tmeoh = 273.15+70;
+T0 = 273.15+280;
+Tmeoh = 273.15+80;
 Tout = T0;
 
 global Tvalues
@@ -44,20 +44,23 @@ Fa0 = 0;
 Fb0= 70.87; %hcl
 Fc0= 0;    %mecl
 Fd0= 0;     %steam
-feedIn = [0.3 0.3 0.4];
+feedIn = [0.7 0.5 0.4];
+x_out = [0.85 0.93 0.99];
 
 feedIn = feedIn/sum(feedIn)
 
 for i = 1:length(feedIn)
     
-    
+    FaN = Fa*feedIn(i);
+    FaP = Fa0;
     Fa0 = Fa0 + Fa*feedIn(i); %meoh
     V = (Fa0+Fb0+Fc0+Fb0)*8.314*T0/P0;
 
-    theta = [Fa0/Fa0; Fb0/Fa0; Fc0/Fa0; Fd0/Fa0;];
+    theta = [Fa0/Fa0; Fb0/Fa0; Fc0/Fa0; Fd0/Fa0; FaN/Fa0; FaP/Fa0];
     
     
-    Tin = (theta(1)*cpData(1)*Tmeoh + theta(2)*cpData(2)*Tout + theta(3)*cpData(3)*Tout + theta(4)*cpData(4)*Tout - latentMeoh*theta(1)) ...
+    Tin = (theta(6)*cpData(1)*Tout + theta(2)*cpData(2)*Tout + theta(3)*cpData(3)*Tout + theta(4)*cpData(4)*Tout ...
+        + theta(5)*cpData(1)*Tmeoh  - latentMeoh*theta(5)) ...
         /(theta(1)*cpData(1)+theta(2)*cpData(2)+theta(3)*cpData(3)+theta(4)*cpData(4));
    
     
@@ -71,24 +74,25 @@ for i = 1:length(feedIn)
     k = KCons(Tin)/k_conv;
     convConst = Ac*ro_b*k/Fa0;
     
+    Tvalues = [Tin];
     [z, y]=ode45(@(z, y)ReactorODE(z,y,P0, Tin, beta, convConst, theta, cpData, thermSystem),zspan,y0);
     
     P = y(:,1);
     x = y(:,2);
 
-    figure(10*i+1)
-    plot (z,y(:,1)/101325);
-    xlabel('z');
-    ylabel('Pressure')
-    legend('P');
+%     figure(10*i+1)
+%     plot (z,y(:,1)/101325);
+%     xlabel('z');
+%     ylabel('Pressure')
+%     legend('P');
+% 
+%     figure(10*i+2)
+%     plot (z,y(:,2));
+%     xlabel('z');
+%     ylabel('Conversion');
+%     legend('x');
 
-    figure(10*i+2)
-    plot (z,y(:,2));
-    xlabel('z');
-    ylabel('Conversion');
-    legend('x');
-
-    termin = find(x>0.99);
+    termin = find(x>x_out(i));
 
     if isempty(termin)
 
@@ -117,8 +121,8 @@ for i = 1:length(feedIn)
     fprintf('x = %16.6f \n',x_t);
     fprintf('z = %16.6f \n',l);
     fprintf('D = %16.6f \n',D);
-    fprintf('Tout = %16.6f \n',Tout-273.15);
     fprintf('Tin = %16.6f \n',Tin-273.15);
+    fprintf('Tout = %16.6f \n',Tout-273.15);
     
     Tvalues = [];
     
@@ -147,14 +151,14 @@ function Reactor_diff = ReactorODE(z,Yfuncvec, P0, T0, beta,convConst, theta, cp
 %    T = Yfuncvec(3);
    global Tvalues 
    
-   dPdz = 0 - beta*(P0/P);
-   dxdz = convConst*(P/2.01)^(2)*((theta(2)-x))*((theta(1)-x));
-   dTdx = (-x*thermSystem(1) ...
+   Ti = (-x*thermSystem(1) ...
         + theta(1)*cpData(1)*T0 + theta(2)*cpData(2)*T0 + theta(3)*cpData(3)*T0 + theta(4)*cpData(4)*T0 ...
         + x*thermSystem(2)*298) ...
         /(theta(1)*cpData(1)+theta(2)*cpData(2)+theta(3)*cpData(3)+theta(4)*cpData(4)+x*thermSystem(2));
-    
-   Tvalues = [Tvalues, dTdx];
+   dPdz = 0 - beta*(P0/P)*(Ti/T0);
+   dxdz = convConst*(P/2.01)^(2)*((theta(2)-x))*((theta(1)-x));
+     
+   Tvalues = [Tvalues, Ti];
     
 Reactor_diff = [dPdz; dxdz];
 end
