@@ -1,2 +1,2 @@
 # Multifeed-Reactor
-Reactor designing for a multifeed Hydrochlorination of methanol reactor.
+Reactor design for a multifeed Hydrochlorination of methanol reactor.
